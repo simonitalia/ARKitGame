@@ -12,10 +12,20 @@ import ARKit
 class Scene: SKScene {
     
     let targetsRemainingLabel = SKLabelNode()
+    var playerTimeLabel = SKLabelNode()
     
     //Time related properties
-    var timer: Timer?
+    var createTargetTimer: Timer?
+    var gameTimer: Timer?
     let startTime = Date()
+    
+    var playerTime = 0 {
+        
+        didSet {
+            playerTimeLabel.text = "Player time: \(playerTime)"
+        }
+    }
+    
     
     //Track total targets created
     var targetsCreatedCount = 0
@@ -27,6 +37,8 @@ class Scene: SKScene {
             targetsRemainingLabel.text = "Targets left: \(targetsVisibleCount)"
         }
     }
+    
+    
     
     override func didMove(to view: SKView) {
         // Setup your scene here
@@ -41,14 +53,32 @@ class Scene: SKScene {
         
         targetsVisibleCount = 0
         
-        //Create and start timer
-        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
+        //Create and start a timer that createsTeagrets every 2 seconds
+        createTargetTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
             self.createTarget()
+            
         }
+        
+        //Start and track Game Timer
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
+            timer in
+            
+            //Update Player time
+            self.playerTime += 1
+        }
+        
+        //Create Player time label, set position in scene and add to scene
+        playerTimeLabel.fontSize = 26
+        playerTimeLabel.fontName = "AmericanTypewriter-Bold"
+        playerTimeLabel.fontColor = .white
+        playerTimeLabel.position = CGPoint(x: 0, y: -190)
+        addChild(playerTimeLabel)
+        
     }
     
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
+        
     }
     
     
@@ -108,8 +138,8 @@ class Scene: SKScene {
         if targetsCreatedCount == 20 {
             
             //Stop and destroy Timer, exit method so no more targets are created
-            timer?.invalidate()
-            timer = nil
+            createTargetTimer?.invalidate()
+            createTargetTimer = nil
             return
         }
         
