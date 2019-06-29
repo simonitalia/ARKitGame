@@ -133,7 +133,10 @@ class Scene: SKScene {
         
         //Move them 1.5 meters forward / deep into the screen
         var translation = matrix_identity_float4x4
-        translation.columns.3.z = -1.5
+        
+        //Generate random distance of target from screen
+        let distance = Float.random(in: -1.5..<1)
+        translation.columns.3.z = distance
         
         //Combine translation (screen depth) property with rotation property
         let transform = simd_mul(rotation, translation)
