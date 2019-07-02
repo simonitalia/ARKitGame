@@ -14,6 +14,9 @@ class ViewController: UIViewController, ARSKViewDelegate {
     
     @IBOutlet var sceneView: ARSKView!
     
+    //Track nodes created, added to scene
+    var trackTargestVisible = [SKNode]()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -56,8 +59,19 @@ class ViewController: UIViewController, ARSKViewDelegate {
     func view(_ view: ARSKView, nodeFor anchor: ARAnchor) -> SKNode? {
         // Create and configure a node for the anchor added to the view's session.
         
+        let targetImage = SKSpriteNode(imageNamed: "target")
+        
+        //Add node to nodes array
+        trackTargestVisible.append(targetImage)
+        
+        //Call method to remove target at anchor point after X seconds
+        Scene.removeTarget(view, anchor, targetImage)
+        
+        //Update Targets visible count
+//        Scene.targetsVisibleCount -= 1
+       
         //The sprite image to display in the scene at the anchor points defined in scene.swift, method createTarget() (called by didMove(to:) method)
-        return SKSpriteNode(imageNamed: "target")
+        return targetImage
         
         //Old Apple template code
 //        let labelNode = SKLabelNode(text: "👾")
@@ -80,4 +94,8 @@ class ViewController: UIViewController, ARSKViewDelegate {
         // Reset tracking and/or remove existing anchors if consistent tracking is required
         
     }
+    
+    
+    
+ 
 }

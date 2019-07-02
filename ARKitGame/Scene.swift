@@ -11,47 +11,63 @@ import ARKit
 
 class Scene: SKScene {
     
-    let targetsRemainingLabel = SKLabelNode()
+    static let targetsRemainingLabel = SKLabelNode()
     var playerTimeLabel = SKLabelNode()
+    var playerScoreLabel = SKLabelNode()
     
     //Time related properties
     var createTargetTimer: Timer?
     var gameTimer: Timer?
     let startTime = Date()
     
-    var playerTime = 0 {
+    //Player related properties
+    var playerScore = 0 {
         
         didSet {
-            playerTimeLabel.text = "Player time: \(playerTime)"
+            playerScoreLabel.text = "Score: \(playerScore)"
         }
     }
     
-    
+    var playerTime = 0 {
+        
+        didSet {
+            playerTimeLabel.text = "Time: \(playerTime)"
+        }
+    }
+
     //Track total targets created
     var targetsCreatedCount = 0
     
     //Track currently visible targets
-    var targetsVisibleCount = 0 {
+    static var targetsVisibleCount = 0 {
         
         didSet {
-            targetsRemainingLabel.text = "Targets left: \(targetsVisibleCount)"
+            Scene.targetsRemainingLabel.text = "Targets left: \(Scene.targetsVisibleCount)"
         }
     }
-    
     
     
     override func didMove(to view: SKView) {
         // Setup your scene here
         
-        //Set fixed screen position for targetsRemainingLabel
-        targetsRemainingLabel.fontSize = 36
-        targetsRemainingLabel.fontName = "AmericanTypewriter-Bold"
-        targetsRemainingLabel.fontColor = .white
-        targetsRemainingLabel.position = CGPoint(x: 0, y: 175)
+        //Set fixed screen position for labels, and add to scene
+        Scene.targetsRemainingLabel.fontSize = 36
+        Scene.targetsRemainingLabel.fontName = "AmericanTypewriter-Bold"
+        Scene.targetsRemainingLabel.fontColor = .white
+        Scene.targetsRemainingLabel.position = CGPoint(x: -175, y: 175)
             //view.frame.midY - 50
-        addChild(targetsRemainingLabel)
         
-        targetsVisibleCount = 0
+        playerScoreLabel.fontSize = 36
+        playerScoreLabel.fontName = "AmericanTypewriter-Bold"
+        playerScoreLabel.fontColor = .white
+        playerScoreLabel.position = CGPoint(x: 175, y: 175)
+
+        //Register properties so Labels update upon changesupdate of
+        Scene.targetsVisibleCount = 0
+        playerScore = 0
+        
+        addChild(Scene.targetsRemainingLabel)
+        addChild(playerScoreLabel)
         
         //Create and start a timer that createsTeagrets every 2 seconds
         createTargetTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
@@ -73,14 +89,12 @@ class Scene: SKScene {
         playerTimeLabel.fontColor = .white
         playerTimeLabel.position = CGPoint(x: 0, y: -190)
         addChild(playerTimeLabel)
-        
     }
     
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
         
     }
-    
     
     //Method for tracking user screen taps
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -104,33 +118,17 @@ class Scene: SKScene {
             let sequence = SKAction.sequence([group, SKAction.removeFromParent()])
             sprite.run(sequence)
             
-            //Remove target from targets visible count
-            targetsVisibleCount -= 1
+            //Update Targest Visible
+            Scene.targetsVisibleCount -= 1
+            
+            //Update Player Score
+            playerScore += 1
             
             //Call Game over handler when game ends
-            if targetsCreatedCount == 20 && targetsVisibleCount == 0 {
+            if targetsCreatedCount == 20 && Scene.targetsVisibleCount == 0 {
                 gameOver()
-                
             }
         }
-        
-        //Old Apple Template Code
-//        guard let sceneView = self.view as? ARSKView else {
-//            return
-//        }
-//
-//        // Create anchor using the camera's current position
-//        if let currentFrame = sceneView.session.currentFrame {
-//
-//            // Create a transform with a translation of 0.2 meters in front of the camera
-//            var translation = matrix_identity_float4x4
-//            translation.columns.3.z = -0.2
-//            let transform = simd_mul(currentFrame.camera.transform, translation)
-//
-//            // Add a new anchor to the session
-//            let anchor = ARAnchor(transform: transform)
-//            sceneView.session.add(anchor: anchor)
-//        }
     }
     
     func createTarget() {
@@ -145,12 +143,14 @@ class Scene: SKScene {
         
         //Update target count properties
         targetsCreatedCount += 1
-        targetsVisibleCount += 1
+        Scene.targetsVisibleCount += 1
         
         //Following code does all the calcualtion to randomly get positions to place targets in the scene, along x and y axis, and at specific depth from the screen
         
         //Safely get / find the scene view to draw the objects into
         guard let sceneView = self.view as? ARSKView else { return }
+        
+//       Scene.sceneView = sceneView
 
         //Create the random X rotation
         let xRotation = simd_float4x4(SCNMatrix4MakeRotation(Float.pi * 2 * Float.random(in: 0...1), 1,0,0))
@@ -171,16 +171,30 @@ class Scene: SKScene {
         //Combine translation (screen depth) property with rotation property
         let transform = simd_mul(rotation, translation)
         
-        //Creat an anchor at the finished position to pass to the scene to display the objet in the scene at
+        //Create an anchor at the finished position to pass to the scene to display the objet in the scene at
         let anchor = ARAnchor(transform: transform)
         sceneView.session.add(anchor: anchor)
+        
     }
     
-    //gameOver hanlder
+    class func removeTarget(_ view: ARSKView, _ anchor: ARAnchor, _ node: SKNode) {
+        
+        DispatchQueue.main.async() {
+            
+            view.node(for: anchor)?.run(
+                SKAction.sequence([
+                    SKAction.wait(forDuration: 10),
+                    SKAction.removeFromParent()
+                ])
+            )
+        }
+    }
+    
+    //gameOver handler
     func gameOver() {
         
         //Remove Label from view
-        targetsRemainingLabel.removeFromParent()
+        Scene.targetsRemainingLabel.removeFromParent()
         
         //Show Game Over image
         let gameOver = SKSpriteNode(imageNamed: "gameOver")
