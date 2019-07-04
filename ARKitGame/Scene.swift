@@ -11,6 +11,8 @@ import ARKit
 
 class Scene: SKScene {
     
+    let maxTargets = 20
+    
     static let targetsRemainingLabel = SKLabelNode()
     var playerTimeLabel = SKLabelNode()
     var playerScoreLabel = SKLabelNode()
@@ -18,20 +20,20 @@ class Scene: SKScene {
     //Time related properties
     var createTargetTimer: Timer?
     var gameTimer: Timer?
-    let startTime = Date()
     
-    //Player related properties
-    var playerScore = 0 {
-        
+    let startTime = Date()
+
+    var playerTime = 0 {
+
         didSet {
-            playerScoreLabel.text = "Score: \(playerScore)"
+           playerTimeLabel.text = "Time: \(playerTime)"
         }
     }
-    
-    var playerTime = 0 {
-        
+
+    //Player related properties
+    var playerScore = 0 {
         didSet {
-            playerTimeLabel.text = "Time: \(playerTime)"
+            playerScoreLabel.text = "Score: \(playerScore)"
         }
     }
 
@@ -45,7 +47,6 @@ class Scene: SKScene {
             Scene.targetsRemainingLabel.text = "Targets left: \(Scene.targetsVisibleCount)"
         }
     }
-    
     
     override func didMove(to view: SKView) {
         // Setup your scene here
@@ -61,16 +62,10 @@ class Scene: SKScene {
         playerScoreLabel.fontName = "AmericanTypewriter-Bold"
         playerScoreLabel.fontColor = .white
         playerScoreLabel.position = CGPoint(x: 175, y: 175)
-
-        //Register properties so Labels update upon changesupdate of
-        Scene.targetsVisibleCount = 0
-        playerScore = 0
+        playerScoreLabel.name = "score"
         
-        addChild(Scene.targetsRemainingLabel)
-        addChild(playerScoreLabel)
-        
-        //Create and start a timer that createsTeagrets every 2 seconds
-        createTargetTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
+        //Create and start a timer that createsTeagrets every X seconds
+        createTargetTimer = Timer.scheduledTimer(withTimeInterval: 3.3, repeats: true) { timer in
             self.createTarget()
             
         }
@@ -78,7 +73,7 @@ class Scene: SKScene {
         //Start and track Game Timer
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
             timer in
-            
+
             //Update Player time
             self.playerTime += 1
         }
@@ -88,7 +83,17 @@ class Scene: SKScene {
         playerTimeLabel.fontName = "AmericanTypewriter-Bold"
         playerTimeLabel.fontColor = .white
         playerTimeLabel.position = CGPoint(x: 0, y: -190)
+        
+        //Register properties so Labels show in scene
+        Scene.targetsVisibleCount = 0
+        playerScore = 0
+        playerTime = 0
+        
+        //Add Nodes to scene
         addChild(playerTimeLabel)
+        addChild(Scene.targetsRemainingLabel)
+        addChild(playerScoreLabel)
+
     }
     
     override func update(_ currentTime: TimeInterval) {
@@ -108,6 +113,17 @@ class Scene: SKScene {
         //Detect if a target is at touched location
         let targetHit = nodes(at: location)
         
+        //Exit method if node touched isn't a target (eg: A Label node)
+        for node in targetHit {
+            if node.name == nil {
+                return
+            
+            } else {
+//                print("Node Tapped: \(String(targetHit[0].name!))")
+                print("Node Tapped: \(String(node.name!))")
+            }
+        }
+        
         //If a target is at touched location, perfrom remove of  target from scene with some animations
         if let sprite = targetHit.first {
             
@@ -120,12 +136,13 @@ class Scene: SKScene {
             
             //Update Targest Visible
             Scene.targetsVisibleCount -= 1
+            print("Visible: \(Scene.targetsVisibleCount)")
             
             //Update Player Score
             playerScore += 1
             
             //Call Game over handler when game ends
-            if targetsCreatedCount == 20 && Scene.targetsVisibleCount == 0 {
+            if targetsCreatedCount >= maxTargets && Scene.targetsVisibleCount <= 0 {
                 gameOver()
             }
         }
@@ -133,24 +150,27 @@ class Scene: SKScene {
     
     func createTarget() {
         
-        if targetsCreatedCount == 20 {
+        //Ensure no more targets are created once max targets to cerate is reached
+        if targetsCreatedCount == maxTargets {
             
-            //Stop and destroy Timer, exit method so no more targets are created
+            //Stop and destroy target Timer, exit method so no more targets are created
             createTargetTimer?.invalidate()
             createTargetTimer = nil
+            
             return
         }
         
         //Update target count properties
         targetsCreatedCount += 1
+        print("Created: \(targetsCreatedCount)")
+        
         Scene.targetsVisibleCount += 1
+        print("Visible: \(Scene.targetsVisibleCount)")
         
         //Following code does all the calcualtion to randomly get positions to place targets in the scene, along x and y axis, and at specific depth from the screen
         
         //Safely get / find the scene view to draw the objects into
         guard let sceneView = self.view as? ARSKView else { return }
-        
-//       Scene.sceneView = sceneView
 
         //Create the random X rotation
         let xRotation = simd_float4x4(SCNMatrix4MakeRotation(Float.pi * 2 * Float.random(in: 0...1), 1,0,0))
@@ -179,22 +199,43 @@ class Scene: SKScene {
     
     class func removeTarget(_ view: ARSKView, _ anchor: ARAnchor, _ node: SKNode) {
         
-        DispatchQueue.main.async() {
+        let wait = SKAction.wait(forDuration: 12.4)
+        let finishedWaiting = SKAction.run {
             
-            view.node(for: anchor)?.run(
-                SKAction.sequence([
-                    SKAction.wait(forDuration: 10),
+            DispatchQueue.main.async() {
+                view.node(for: anchor)?.run(
                     SKAction.removeFromParent()
-                ])
-            )
+                )
+            }
+            
+            Scene.targetsVisibleCount -= 1
+            print("Visible: \(Scene.targetsVisibleCount)")
         }
+        
+        let sequence = SKAction.sequence([wait, finishedWaiting])
+        node.run(sequence)
+        return
+        
+//        DispatchQueue.main.async() {
+//            view.node(for: anchor)?.run(
+//                SKAction.sequence([
+//                    SKAction.wait(forDuration: 10),
+//                    SKAction.removeFromParent(),
+//                    ])
+//            )
+//        }
     }
     
     //gameOver handler
     func gameOver() {
         
-        //Remove Label from view
+        //Invalidate Game timer
+        gameTimer?.invalidate()
+        gameTimer = nil
+        
+        //Remove Labels from view
         Scene.targetsRemainingLabel.removeFromParent()
+        playerTimeLabel.removeFromParent()
         
         //Show Game Over image
         let gameOver = SKSpriteNode(imageNamed: "gameOver")
@@ -202,8 +243,8 @@ class Scene: SKScene {
         
         //Get and display Player Time taken
         let playerTimeTaken = Date().timeIntervalSince(startTime)
-        let timeTakenLabel = SKLabelNode(text: "Time taken: \(Int(playerTimeTaken)) seconds.")
-        timeTakenLabel.fontSize = 36
+        let timeTakenLabel = SKLabelNode(text: "Time taken: \(Int(playerTimeTaken)) seconds. You hit \(playerScore) targets.")
+        timeTakenLabel.fontSize = 26
         timeTakenLabel.fontName = "AmericanTypewriter"
         timeTakenLabel.color = .white
         timeTakenLabel.position = CGPoint(x: 0, y: -view!.frame.midY + 50)
